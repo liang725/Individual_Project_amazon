@@ -1,6 +1,3 @@
-//import define1 from "./amazon_517.js";
-//import define2 from "./amazon_817.js";
-
 function _1(md){return(
 md`# 商品共购关系网络`
 )}
