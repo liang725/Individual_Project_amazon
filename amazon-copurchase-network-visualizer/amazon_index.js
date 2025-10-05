@@ -100,7 +100,7 @@ function ForceGraph({
       .style("background", "white")
       .style("padding", "0 0 15px 0");
 
-  //搜索面板
+//搜索面板
   const searchPanel = fixedHeader.append("div")
       .style("display", "flex")
       .style("gap", "10px")
@@ -109,14 +109,36 @@ function ForceGraph({
       .style("border-radius", "8px")
       .style("box-shadow", "0 2px 4px rgba(0,0,0,0.05)");
 
-  const searchInput = searchPanel.append("input")
+  // 创建搜索输入容器（用于放置下拉列表）
+  const searchInputContainer = searchPanel.append("div")
+      .style("position", "relative")
+      .style("flex-grow", "1");
+
+  const searchInput = searchInputContainer.append("input")
       .attr("type", "text")
-      .attr("placeholder", "请输入完整商品名称...")
-      .style("flex-grow", "1")
+      .attr("placeholder", "输入关键词搜索商品...")
+      .style("width", "100%")
       .style("padding", "10px 15px")
       .style("border", "1px solid #ccc")
       .style("border-radius", "6px")
-      .style("font-size", "14px");
+      .style("font-size", "14px")
+      .style("box-sizing", "border-box");
+
+  // 创建下拉建议列表
+  const suggestionList = searchInputContainer.append("div")
+      .style("position", "absolute")
+      .style("top", "100%")
+      .style("left", "0")
+      .style("right", "0")
+      .style("background", "white")
+      .style("border", "1px solid #ccc")
+      .style("border-top", "none")
+      .style("border-radius", "0 0 6px 6px")
+      .style("max-height", "300px")
+      .style("overflow-y", "auto")
+      .style("z-index", "1000")
+      .style("display", "none")
+      .style("box-shadow", "0 4px 6px rgba(0,0,0,0.1)");
 
   const searchButton = searchPanel.append("button")
       .style("padding", "10px 18px")
@@ -142,6 +164,88 @@ function ForceGraph({
       .style("box-shadow", "0 2px 4px rgba(0,0,0,0.1)")
       .text("✖ 清除高亮");
 
+  // 搜索建议功能
+  function updateSuggestions(query) {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (normalizedQuery === "") {
+      suggestionList.style("display", "none");
+      return;
+    }
+
+    // 查找匹配的节点
+    const matches = nodes
+      .map((d, i) => ({ node: d, name: N[i], index: i }))
+      .filter(item => item.name.toLowerCase().includes(normalizedQuery))
+      .slice(0, 20); // 最多显示20个建议
+
+    if (matches.length === 0) {
+      suggestionList.style("display", "none");
+      return;
+    }
+
+    // 清空并重新填充建议列表
+    suggestionList.selectAll("*").remove();
+
+    matches.forEach(match => {
+      const item = suggestionList.append("div")
+        .style("padding", "10px 15px")
+        .style("cursor", "pointer")
+        .style("border-bottom", "1px solid #f0f0f0")
+        .style("transition", "background 0.2s")
+        .style("font-size", "14px")
+        .html(() => {
+          // 高亮匹配的部分
+          const name = match.name;
+          const regex = new RegExp(`(${normalizedQuery})`, 'gi');
+          return name.replace(regex, '<strong style="color: #007bff;">$1</strong>');
+        })
+        .on("mouseover", function() {
+          d3.select(this).style("background", "#f0f8ff");
+        })
+        .on("mouseout", function() {
+          d3.select(this).style("background", "white");
+        })
+        .on("click", function() {
+          searchInput.property("value", match.name);
+          suggestionList.style("display", "none");
+          highlightNode(match.name);
+        });
+    });
+
+    suggestionList.style("display", "block");
+  }
+
+  // 点击页面其他地方关闭下拉列表
+  d3.select("body").on("click.closeSuggestions", function(event) {
+    if (!searchInputContainer.node().contains(event.target) &&
+        !searchButton.node().contains(event.target)) {
+      suggestionList.style("display", "none");
+    }
+  });
+
+  // 搜索按钮点击事件
+  searchButton.on("click", () => {
+      const query = searchInput.property("value");
+      suggestionList.style("display", "none");
+      highlightNode(query);
+  });
+
+  // 输入框输入事件 - 实时显示建议
+  searchInput.on("input", function() {
+      updateSuggestions(this.value);
+  });
+
+  // 输入框回车事件
+  searchInput.on("keypress", function(event) {
+      if (event.key === "Enter") {
+          suggestionList.style("display", "none");
+          highlightNode(this.value);
+      }
+  });
+
+  // 清除按钮点击事件
+  clearButton.on("click", clearHighlighting);
   // 创建统计面板
   const statsPanel = fixedHeader.append("div")
       .style("display", "flex")
